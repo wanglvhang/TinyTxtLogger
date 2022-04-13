@@ -83,15 +83,15 @@ way 2 with appsetting.json file:
 
         "TxtLogFolderName": "logsc",
 
-        "LogFileNamePrefix ": "logc",
+        "LogFileNamePrefix": "logc",
 
-        "RollingInterval  ": "Year",
+        "RollingInterval": "Year",  // Hour,Day,Month,Year,Infinite
 
-        "FileSizeLimit  ": 10240,
+        "FileSizeLimit": 10240,  //in KB
 
-        "AutoCleanLogFolder  ": false,
+        "AutoCleanLogFolder": false,
 
-        "ReserveLogFileCount ": 30
+        "ReserveLogFileCount": 30
 
       }
 
@@ -100,7 +100,7 @@ way 2 with appsetting.json file:
   }
 
 }
-```   
+``` 
 
 <br>
 after you complete your configuration in appsetting.json, you need add one line to your code to bind your configuration:
