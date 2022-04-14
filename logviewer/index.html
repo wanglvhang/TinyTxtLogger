@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0,user-scalable=no" />
+    <title>TinyTxtLogger Viewer | log viewer for Lvhang.TinyTxtLogger</title>
+    <meta name='description' content='this is a log viewer tool to view Lvhang.TinyTxtLogger log file.'>
+    <meta name='keywords' content='log viewer;Lvhang.TinyTxtLogger'>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.2/moment.min.js"></script>
+    <style>
+        * {
+            font-family: 'Microsoft YaHei', "黑体", sans-serif, "Comic Sans MS";
+        }
+
+        html,
+        body,
+        div,
+        img {
+            margin: 0;
+            padding: 0;
+        }
+
+        .form-group {
+            margin-bottom: 0.6rem;
+        }
+
+        .form-group label {
+            margin-bottom: .1rem;
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table td {
+            padding: .25rem;
+            text-align: left;
+        }
+
+        .form-group label {
+            color: darkgray;
+        }
+
+        .form-group input {
+            outline: none;
+        }
+
+
+
+        #file_uploader {
+            margin: 20px;
+            height: 200px;
+            border: dashed 2px #82b59d;
+            text-align: center;
+        }
+
+        #file_info {
+            margin: 20px;
+            padding: 10px;
+            border: solid 1px #82b59d;
+        }
+
+        #file_info .title {
+            text-align: right;
+            color: darkgray;
+        }
+
+        #log_filter {
+            margin: 20px 20px 8px 20px;
+            padding: 10px;
+            border: solid 2px #4891cf;
+        }
+
+
+        #log_view {}
+
+        /* .tab-content>.tab-pane {
+            display: block;
+            height: 0;
+            overflow: hidden;
+        }
+
+        .tab-content>.tab-pane.active {
+            height: auto;
+        } */
+    </style>
+</head>
+
+<body>
+
+    <div id="log-app">
+        <div style="color:#3c3c3c;padding: 1rem 1rem 0 1rem;border-bottom:solid 1px #628ebd;">
+            <h2>
+                TinyTxt Log Viewer
+                <small class="text-muted" style="font-size: 16px;">v22413 this is a tool to view
+                    <b>Lvhang.TinyTxtLogger</b>'s log file. GitHub:<a href="https://github.com/wanglvhang/TinyTxtLogger">TinyTxtLogger</a></small>
+            </h2>
+        </div>
+        <div @dragover.prevent @drop.prevent>
+            <input id="file_input" type="file" @change="loadFile" v-model="inputFile" accept=".log" style="display: none;" />
+            <div id="file_uploader" v-if="!isLogFileLoaded" @click="uploderClick" @drop="dropFile"
+                @dragover="dragoverFile" @dragleave="dragLeave">
+                <p style="font-size: 26px;color: grey;margin-top: 60px;">Drag your log file here or click to select your
+                    file.</p>
+                <p style="font-size: 20px;color: #dd1717;">{{loadErrorMessage}}</p>
+                <div v-show="isLogFileLoadding" class="spinner-border text-info" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
+
+            <div id="file_info" v-if="isLogFileLoaded">
+                <p>{{logFileInfo.name}}<span style="color:gray;"> / latest
+                        modified:</span>{{logFileInfo.lastModifiedDate}} <button type="button" class="btn btn-danger"
+                        @click="unloadFile">Unload Log File</button></p>
+                <table class="table">
+                    <tr>
+                        <td class="title">file size:</td>
+                        <td>{{logFileInfo.sizeStr }}</td>
+
+                        <td class="title">log entries:</td>
+                        <td>{{allLogEntries.length}}</td>
+
+                        <td class="title">total lines:</td>
+                        <td>{{allLogLines.length}}</td>
+
+                    </tr>
+                </table>
+
+            </div>
+
+            <div id="log_filter" v-if="isLogFileLoaded" style="padding: 10px;">
+                <div class="form-row">
+                    <div class="form-group col-3">
+                        <label for="exampleFormControlInput1">Keyword</label>
+                        <input @input="filterChanged" v-model="filter_keyword" type="text"
+                            class="form-control form-control-sm">
+                    </div>
+
+                    <div class="form-group col-3">
+                        <label for="exampleFormControlInput1">EventId</label>
+                        <input @input="filterChanged" v-model="filter_eventid" type="text"
+                            class="form-control form-control-sm">
+                    </div>
+
+                    <div class="form-group col-3">
+                        <label for="exampleFormControlSelect1">Log Levels</label>
+                        <select @change="filterChanged" v-model="filter_loglevel" class="form-control form-control-sm">
+                            <option value="all">all</option>
+                            <option value="trace">trace</option>
+                            <option value="debug">debug</option>
+                            <option value="information">information</option>
+                            <option value="warning">warning</option>
+                            <option value="error">error</option>
+                            <option value="critical">critical</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group col-3">
+                        <label for="exampleFormControlSelect1">Category Name</label>
+                        <select @change="filterChanged" v-model="filter_categoryname"
+                            class="form-control form-control-sm">
+                            <option value="all">all</option>
+                            <option v-for="cate in allCategories" :value="cate">{{cate}}</option>
+                        </select>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div id="log_view" v-if="isLogFileLoaded" style="flex:1 0 auto;margin:2px 20px;">
+
+                <div id="tab-container">
+                    <ul class="nav nav-tabs" id="myTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link active" id="detail-tab" data-toggle="tab" href="#detail" role="tab"
+                                aria-controls="detail" aria-selected="true">Log Entries</a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="loglevel_statistics-tab" data-toggle="tab"
+                                href="#loglevel_statistics" role="tab" aria-controls="statistics"
+                                aria-selected="false">LogLevel Statistics</a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="category_statistics-tab" data-toggle="tab"
+                                href="#category_statistics" role="tab" aria-controls="statistics"
+                                aria-selected="false">Category Statistics</a>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="myTabContent">
+                        <div class="tab-pane fade show active" id="detail" role="tabpanel" aria-labelledby="detail-tab">
+
+                            <div id="log_view_container" style="display: flex;flex-direction: row;padding: 8px;">
+                                <div style="flex: 0 0 auto;width: 400px;min-height: 700px;">
+                                    <div class="form-group">
+                                        <label for="pageing_select" style="color: darkgray;">top 6000(maxium) of query
+                                            results</label>
+                                        <select class="form-control form-control-sm" id="pageing_select"
+                                            @change="pageSelectedChanged" v-model="selectedPage">
+                                            <option v-for="page in pages" :key="page.idx" :value="page.page">
+                                                {{page.start}}~{{page.end}}</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <!-- 使用ul li 实现类似效果 -->
+                                        <!-- https://www.w3.org/TR/wai-aria-practices-1.1/examples/listbox/listbox-scrollable.html -->
+                                        <select id="logList" multiple class="logList" v-model="selectedLogKeys"
+                                            @change="logSelectedChanged"
+                                            style="outline:none;width: 100%;min-height: 672px;max-height: 1000px;;">
+                                            <option v-for="item in currentPageItems" :key="item.key" :value="item.key">
+                                                {{item.content}}</option>
+                                        </select>
+                                    </div>
+
+                                </div>
+
+                                <div style="flex: 1 0 auto;min-height: 700px;">
+                                    <div class="log_detail" style="padding: 20px;">
+
+                                        <div class="form-group">
+                                            <label for="log_level_view">LogLevel:</label>
+                                            <div>
+                                                <input type="text" readonly class="form-control-plaintext"
+                                                    id="log_level_view" :value="selectedLogEntry.loglevel">
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="log_eventid_view">EventID:</label>
+                                            <div>
+                                                <input type="text" readonly class="form-control-plaintext"
+                                                    id="log_eventid_view" :value="selectedLogEntry.eventId">
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="log_category_view">CategoryName:</label>
+                                            <div>
+                                                <input type="text" readonly class="form-control-plaintext"
+                                                    id="log_category_view" :value="selectedLogEntry.categoryName">
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="log_time_view">Time:</label>
+                                            <div>
+                                                <input type="text" readonly class="form-control-plaintext"
+                                                    id="log_time_view" :value="selectedLogEntry.time">
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+
+                                            <label for="log_detail_view">Content:</label>
+                                            <div>
+                                                <textarea class="form-control" id="log_detail_view" rows="16" readonly
+                                                    v-model="selectedLogEntry.content"></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="tab-pane fade" id="loglevel_statistics" role="tabpanel"
+                            aria-labelledby="statistics-tab">
+
+                            <div style="min-height: 800px;padding: 8px;">
+                                <canvas id="loglevel_pie_chart" style="width: 700px;height: 700px;"></canvas>
+                            </div>
+
+
+                        </div>
+
+                        <div class="tab-pane fade" id="category_statistics" role="tabpanel"
+                            aria-labelledby="statistics-tab">
+
+                            <div style="height: 800px; width: 800px; padding: 8px;">
+                                <canvas id="category_pie_chart" style="width: 700px;height: 700px;"></canvas>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+    </div>
+    <script>
+
+        var loglevel_chart = {};
+        var category_chart = {};
+
+        $(document).on('shown.bs.tab', 'a[data-toggle="tab"]', function (e) {
+
+            console.log(e.currentTarget.id);
+            if (e.currentTarget.id == 'category_statistics-tab') {
+                updateCategoryChart();
+            } else if (e.currentTarget.id == 'loglevel_statistics-tab') {
+                updateLogLevelChart();
+            }
+
+        });
+
+
+        function updateLogLevelChart() {
+
+            console.log("update loglevel chart");
+            //从filteredEntries 中获取各个 loglevel 的log数量
+            var trace_num = 0;
+            var debug_num = 0;
+            var information_num = 0;
+            var warning_num = 0;
+            var error_num = 0;
+            var critical_num = 0;
+
+            logApp.filteredLogEntries.forEach(function (l) {
+                if (l.loglevel == "trace") {
+                    trace_num++;
+                } else if (l.loglevel == "debug") {
+                    debug_num++;
+                } else if (l.loglevel == "information") {
+                    information_num++;
+                } else if (l.loglevel == "warning") {
+                    warning_num++;
+                } else if (l.loglevel == "error") {
+                    error_num++;
+                } else if (l.loglevel == "critical") {
+                    critical_num++;
+                }
+            });
+
+            var logs_data = [trace_num, debug_num, information_num, warning_num, error_num, critical_num];
+
+            var chart = Chart.getChart("loglevel_pie_chart");
+
+            if (!chart) {
+                chart = new Chart($('#loglevel_pie_chart'), {
+                    type: "pie",
+                    data: {
+                        labels: ['trace', 'debug', 'information', 'warning', 'error', 'critical'],
+                        datasets: [{
+                            label: "dataset1",
+                            data: logs_data,
+                            backgroundColor: [
+                                '#67758a',
+                                '#03bcff',
+                                '#03ffc4',
+                                '#ffc403',
+                                '#ff4603',
+                                '#ff033e'
+                            ],
+                        }],
+
+                    },
+                    options: {
+                        responsive: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Log Level Statistics Pie Chart'
+                            }
+                        }
+                    },
+                });
+
+            }
+            else {
+                //更新数据
+                chart.data.datasets[0].data = logs_data;
+
+            }
+
+            chart.update();
+
+        }
+
+        function updateCategoryChart() {
+            var chart = Chart.getChart("category_pie_chart");
+
+            //从filteredEntries 中获取数据
+            var categories_data = [];
+            for (var i = 0, len = logApp.allCategories.length; i < len; i++) {
+                var cate = logApp.allCategories[i];
+                let found = logApp.filteredLogEntries.filter(l => l.categoryName == cate);
+                categories_data.push({
+                    label: cate,
+                    count: found.length,
+                });
+            }
+
+            // logApp.allCategories.forEach(function (cate) {
+            //     let found = logApp.filteredLogEntries.filter(l => l.categoryName == cate);
+            //     categories_data.push({
+            //         label: cate,
+            //         count: found.length,
+            //     });
+            // });
+
+            console.log(categories_data);
+
+            //取top 10 + 1个 other
+            categories_data.sort(function (a, b) {
+                //return a.count -  b.count; //顺序
+                return b.count - a.count; //倒序
+            });
+
+            if (categories_data.length > 20) {
+                //获取前16个再将所有其他归为‘其他类’并求出其他类的总合
+                var others = categories_data.slice(19);
+
+                var categories_data = categories_data.slice(0, 19);
+
+                var others_count = 0;
+                others.forEach(c => others_count += c.count);
+
+                categories_data.push({
+                    label: "Others",
+                    count: others_count,
+                });
+
+
+            }
+
+            //set colors
+            var flatUIColors = [
+                '#A4C400',
+                '#0050EF',
+                '#A20025',
+                '#825A2C',
+                '#60A917',
+                '#6A00FF',
+                '#E51400',
+                '#6D8764',
+                '#008A00',
+                '#AA00FF',
+                '#FA6800',
+                '#647687',
+                '#00ABA9',
+                '#F472D0',
+                '#F0A30A',
+                '#76608A',
+                '#1BA1E2',
+                '#D80073',
+                '#E3C800',
+                '#A0522D',
+                //
+                '#647687',
+            ];
+
+
+            var labels = categories_data.map(c => c.label);
+            var data = categories_data.map(c => c.count);
+            var colors = flatUIColors.slice(0, categories_data.length);
+
+            var dataset = {
+                label: "category dataset",
+                data: data,
+                backgroundColor: colors,
+            }
+
+
+
+
+            if (!chart) {
+                chart = new Chart($('#category_pie_chart'), {
+                    type: "pie",
+                    data: {
+                        labels: labels,
+                        datasets: [dataset],
+
+                    },
+                    options: {
+                        responsive: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Category Statistics Pie Chart'
+                            }
+                        }
+                    },
+                });
+
+            }
+            else {
+                //更新数据
+                chart.data.labels = labels;
+                chart.data.datasets[0] = dataset;
+            }
+
+            chart.update();
+
+        }
+
+
+        var logApp = new Vue({
+            el: '#log-app',
+            data: {
+                inputFile:"",
+                logFileInfo: {},
+                isLogFileLoaded: false,
+                isLogFileLoadding: false,
+                allLogLines: [],
+                allLogEntries: [],
+                filteredLogEntries: [],
+                allCategories: [],
+
+                loadErrorMessage: "",
+
+                selectedPage: {},
+                selectedLogKeys: [],
+                selectedLogEntry: {},
+
+                pages: [],
+                currentPageItems: [],
+
+                filter_keyword: "",
+                filter_eventid: "",
+                filter_loglevel: "all",
+                filter_categoryname: "all",
+
+            },
+
+            methods: {
+                dragoverFile(e) {
+                    //设置样式
+                    $("#file_uploader").css("border-color", "indianred");
+                },
+                dragLeave() {
+                    $("#file_uploader").css("border-color", "#82b59d");
+                },
+
+                dropFile(event) {
+
+                    var vue_this = this;
+                    let drop_files = event.dataTransfer.files;
+
+                    if (drop_files.length > 0) {
+
+                        this.isLogFileLoadding = true;
+
+                        var log_file = drop_files[0];
+
+                        //check file, is extension is .log or .txt
+                        if (!log_file.name.endsWith(".log")) {
+                            //set error message
+                            this.loadErrorMessage = "error:only *.log file are supported.";
+                            this.isLogFileLoadding = false;
+                            $("#file_uploader").css("border-color", "#82b59d");
+                            return;
+                        }
+
+                        if(log_file.size == 0){
+
+                        }
+
+                        this.readFileInfo(log_file);
+                        //start load log file
+                        this.readLogFile(log_file, function () {
+                            //load 完成回调
+
+                            //检查load结果
+                            console.log(vue_this.allLogEntries.length);
+                            //文件读取完成后
+                            vue_this.isLogFileLoaded = true;
+                            vue_this.isLogFileLoadding = false;
+
+                            vue_this.filteredLogEntries = vue_this.allLogEntries;
+
+                            //构造 pages 生成页数
+                            vue_this.resetPages();
+
+                        });
+
+                    }
+                    else {
+                        $("#file_uploader").css("border-color", "#82b59d");
+
+                    }
+
+                },
+                uploderClick() {
+                    console.log("upload click")
+                    $("#file_input").trigger("click");
+                },
+                loadFile(event) {
+
+                    let selected_files = event.target.files;
+
+                    console.log("input file");
+                    console.log(this.inputFile);
+
+                    var vue_this = this;
+
+                    this.isLogFileLoadding = true;
+
+                    var log_file = selected_files[0];
+
+                    this.readFileInfo(log_file);
+                    //start load log file
+                    this.readLogFile(log_file, function () {
+                        //load 完成回调
+                        //检查load结果
+                        console.log(vue_this.allLogEntries.length);
+                        //文件读取完成后
+                        vue_this.isLogFileLoaded = true;
+                        vue_this.isLogFileLoadding = false;
+
+                        vue_this.filteredLogEntries = vue_this.allLogEntries;
+
+                        //构造 pages 生成页数
+                        vue_this.resetPages();
+
+                    });
+
+                },
+
+
+                unloadFile() {
+
+                    this.inputFile = "";
+                    this.logFileInfo = {};
+
+                    this.allLogLines = [];
+                    this.allLogEntries = [];
+                    this.filteredLogEntries = [];
+                    this.allCategories = [];
+
+                    this.selectedPage = {};
+                    this.selectedLogKeys = [];
+                    this.selectedLogEntry = {};
+
+                    this.pages = [];
+                    this.currentPageItems = [];
+
+
+                    this.isLogFileLoaded = false;
+                },
+
+
+
+
+
+                filterChanged() {
+
+                    var keyword = this.filter_keyword.trim();
+                    var eventid = this.filter_eventid.trim();
+                    var loglevel = this.filter_loglevel;
+                    var catename = this.filter_categoryname;
+
+                    var found = this.allLogEntries;
+                    if (keyword) {
+                        found = found.filter(l => l.content.includes(keyword));
+                    }
+                    if (eventid) {
+                        found = found.filter(l => l.eventId.includes(eventid));
+                    }
+                    if (loglevel != "all") {
+                        found = found.filter(l => l.loglevel == loglevel);
+                    }
+                    if (catename != "all") {
+                        found = found.filter(l => l.categoryName == catename);
+                    }
+
+                    this.filteredLogEntries = found ? found : [];
+
+                    this.resetPages();
+
+                    updateLogLevelChart();
+                    updateCategoryChart();
+ 
+                },
+
+                pageSelectedChanged() {
+                    console.log(this.selectedPage);
+                    this.setCurrentPageItems();
+                },
+
+                logSelectedChanged() {
+                    //根据 selectedLogKeys 设置 selectedLogEntry from allLogEntries
+                    if (this.selectedLogKeys.length > 0) {
+                        var selected_key = this.selectedLogKeys[0];
+                        //console.log(selected_key);
+                        var found = this.allLogEntries.find(l => l.key === selected_key);
+                        //console.log(found);
+                        this.selectedLogEntry = found;
+                    }
+
+                },
+
+
+                resetPages() {
+                    this.pages = [];
+                    var total_count = this.filteredLogEntries.length;
+                    var total_pages = Math.ceil(total_count / 200);
+                    total_pages = total_pages >= 20 ? 20 : total_pages;
+                    var loop_idx = 0;
+                    while (loop_idx < total_pages) {
+                        var page_info = {};
+                        page_info.idx = loop_idx;
+                        page_info.page = loop_idx + 1;
+                        page_info.start = loop_idx * 200 + 1;
+                        page_info.end = (loop_idx + 1) * 200;
+
+                        if (page_info.end > total_count) {
+                            page_info.end = total_count;
+                        }
+
+                        this.pages.push(page_info)
+                        loop_idx++;
+                    }
+
+                    this.selectedPage = 1;
+
+                    this.setCurrentPageItems();
+
+                },
+
+
+                readFileInfo(log_file) {
+
+                    //开始读取文件则重置错误信息
+                    this.loadErrorMessage = "";
+                    this.logFileInfo = {
+                        name: log_file.name,
+                        lastModifiedDate: log_file.lastModifiedDate,
+                        sizeStr: log_file.size > 1048576 ? (log_file.size / 1048576).toFixed(2) + "MB" : (log_file.size / 1024).toFixed(2) + "KB",
+                    }
+                },
+
+                readLogFile(file, completeCallBack) {
+
+                    var vue_this = this;
+                    const reader = new FileReader();
+                    var vue_this = this;
+                    reader.onload = function () {
+                        var all_lines = this.result.split(/\r\n|\n/);
+
+                        var current_log_info = null;
+                        var log_idx_key = 0;
+
+                        all_lines.forEach(function (line) {
+
+                            vue_this.allLogLines.push(line);
+
+                            //parse each line
+                            var loginfo = vue_this.parseLogInfoFromMetaLine(line);
+                            if (loginfo) {
+                                //
+                                loginfo.key = log_idx_key;
+                                current_log_info = loginfo;
+                                vue_this.allLogEntries.push(loginfo)
+                                log_idx_key++;
+                            } else {
+                                //内容行
+                                if (current_log_info) {
+                                    current_log_info.content += line + '\r\n';//split会清理换行符
+                                }
+
+                            }
+
+                        });
+
+                        //sort allLogEntries after initial
+
+
+                    };
+
+                    reader.onloadend = completeCallBack;
+
+                    reader.readAsText(file);
+
+                },
+
+                parseLogInfoFromMetaLine(line) {
+                    var meta_cols = line.split('|');
+                    if (meta_cols.length != 4) {
+                        return null;
+                    }
+
+                    if (!['trace', 'debug', 'information', 'warning', 'error', 'critical'].find(l => l == meta_cols[0])) {
+                        return null;
+                    }
+
+                    if (isNaN(meta_cols[1])) {
+                        return null;
+                    }
+
+                    var time = new Date(meta_cols[2]);
+
+                    if (!time) {
+                        return null;
+                    }
+
+                    //检查 allcategories 并添加
+                    var found = this.allCategories.find(c => c == meta_cols[3]);
+
+                    if (!found) {
+                        this.allCategories.push(meta_cols[3]);
+                    }
+
+
+
+                    var log = {};
+                    log.loglevel = meta_cols[0]
+                    log.eventId = meta_cols[1];
+                    log.time = time;
+                    log.categoryName = meta_cols[3]
+                    log.content = "";
+
+                    return log
+                },
+
+                //build pages data
+                setCurrentPageItems() {
+                    //get page by 
+                    this.selectedPage;
+                    this.filteredLogEntries;
+
+                    var start_idx = (this.selectedPage - 1) * 200;
+                    var end_idx = this.selectedPage * 200;
+                    if (end_idx > this.filteredLogEntries.length - 1) {
+                        end_idx = this.filteredLogEntries.length - 1;
+                    }
+                    this.currentPageItems = this.filteredLogEntries.slice(start_idx, end_idx);
+
+                },
+
+            }
+
+        });
+
+
+
+    </script>
+</body>
+
+</html>
