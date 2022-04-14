@@ -137,8 +137,9 @@ and that's almost every this of this tool, except that this project provide a to
 
 ## log viewer tool
 log viewer tool is a single html page app, with this tool you can search logs and view log file statistics charts as below screenshot shows.
-<br>
-<br>
+you can download this tool from logviewer folder or more conveniently you can visit online version [TinyTxt LogViwer](https://lvhang.site/apps/logviewer), BTW nothing will be uploaded in both way, all the log data are processed in browser.
+
+
 ![image](https://user-images.githubusercontent.com/936437/163235586-7103cc28-7a7c-4a6c-9b06-d4f83bb0922d.png)
 
 
