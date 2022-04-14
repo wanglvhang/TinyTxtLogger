@@ -1,8 +1,14 @@
-# TinyTxtLogger [project is building will upload in 24 hours]
+# TinyTxtLogger 
 
-this logger tool is fully based on Microsoft.Extensons, so you can use it in .NET Worker Service or ASP.NET Core project, if you are working on those project and looking for a logger tool that save logs to local txt file, this is the one.
+## summary
 
-it's very easy to use this tool, after you install Lvhang.TinyTxtLogger from nuget you only need one line to add this tool to your project: `logging.AddTinyTxt();`。
+this logger tool is fully based on Microsoft.Extensons, you can use it in .NET Worker Service or ASP.NET Core project. if you are working on those project and looking for a logger tool that save logs to local txt file, this is the one you need.
+
+it's very easy to use this tool, you only need one line of code to add this tool to your project: `logging.AddTinyTxt();`。
+
+## installition
+
+you can include this tool from NuGet with name Lvhang.TinyTxtLogger.
 
 ```
 IHost host = Host.CreateDefaultBuilder(args)
@@ -30,9 +36,10 @@ IHost host = Host.CreateDefaultBuilder(args)
     .Build();
 ```
 
+## configuration
 there's two way to configure the tool
 
-way 1 with code:
+**way 1 with code:**
 
 ```
 logging.AddTinyTxt(options =>
@@ -54,7 +61,7 @@ logging.AddTinyTxt(options =>
         });
 ```   
 
-way 2 with appsetting.json file:
+**way 2 with appsetting.json file:**
 
   ```
 {
@@ -81,9 +88,9 @@ way 2 with appsetting.json file:
 
       "Options": {
 
-        "TxtLogFolderName": "logsc",
+        "TxtLogFolderName": "logs",
 
-        "LogFileNamePrefix": "logc",
+        "LogFileNamePrefix": "log",
 
         "RollingInterval": "Year",  // Hour,Day,Month,Year,Infinite
 
@@ -102,9 +109,9 @@ way 2 with appsetting.json file:
 }
 ``` 
 
-<br>
 after you complete your configuration in appsetting.json, you need add one line to your code to bind your configuration:
 
+``` 
 IHost host = Host.CreateDefaultBuilder(args)
 
     .BindTinyTxtLoggerOptions() //this line to bind configuration
@@ -122,16 +129,19 @@ IHost host = Host.CreateDefaultBuilder(args)
     .ConfigureServices(services =>
 
     {
-
         services.AddHostedService<Worker>();
 
     })
 
     .Build();
+``` 
 
+and that's almost every this of this tool, except that this project provide a tool to help you to view log file more friendly.
 
-and that's almost every this of this tool, except that this project provide a single html page to help you to view log file more friendly.
-
+## log viewer tool
+log viewer tool is a single html page app, with this tool you can search logs and view log file statistics charts as below screenshot shows.
+<br>
+<br>
 ![image](https://user-images.githubusercontent.com/936437/163235586-7103cc28-7a7c-4a6c-9b06-d4f83bb0922d.png)
 
 
