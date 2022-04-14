@@ -12,16 +12,13 @@ you can include this tool from NuGet with name Lvhang.TinyTxtLogger.
 
 ```
 IHost host = Host.CreateDefaultBuilder(args)
-
-    .BindTinyTxtLoggerOptions()
-
     .ConfigureLogging((context, logging) =>
 
     {
 
         logging.ClearProviders();
 
-        logging.AddTinyTxt();
+        logging.AddTinyTxt();//add TinyTxtLogger
 
     })
 
